@@ -1,0 +1,126 @@
+•	Installing Hadoop 3.1.2 on Raspberry pi 3
+After you prepared your environments (Installing OS (UNIX in this case)/ networking), you have to download Hadoop software and then begin the installation.
+Flow below steps to compete the Hadoop installation on 3 nodes cluster:
+1-	Edit /etc/host file by adding IP/hostname for the nodes in the cluster 
+vi /etc/host 
+192.168.110.9 raspbigdata01
+192.168.110.13 raspbigdata02
+192.168.110.17 raspbigdata03
+
+2-	Update the hostname 
+/etc/hostname 
+
+3-	Generate ssh key and ssh-copy-id ssh keys around to all nodes
+# Generate ssh key
+ssh-keygen -t rsa -b 4096
+# Copy to other nodes
+ssh-copy-id slave-1
+ssh-copy-id slave-2
+# Do the same for all nodes.
+
+4-	Check Java version , Most of OS came with java installed , if you did find it download java 1.8x version.
+
+cd ~
+vi .bashrc
+export JAVA_HOME=/usr/lib/jvm/jdk-8-oracle-arm32-vfp-hflt/jre
+source .bashrc
+
+
+5-	Download .tar.gz Hadoop source to your preferred location, for example /apache/hadoop.
+sudo mkdir -p /apache/Hadoop
+sudo chown user_name:user_group /apache/hadoop/
+tar -xvf hadoop-3.1.2.tar.gz
+6-	Create file named (worker) and add all the nodes (servers) that you want to use in the data processing 
+
+cd /apache/hadoop/hadoop-3.1.2/etc/hadoop/
+vi worker 
+# add below servers name 
+raspbigdata01
+raspbigdata02
+raspbigdata03
+
+7-	Create directories for the name nodes and the data directories in the data nodes (which will hold the HDFS  data)
+sudo mkdir -p /opt/hadoop_tmp/hdfs/namenode # for name nodes
+sudo mkdir -p /opt/hadoop_tmp/hdfs/datanode # for data node(in all servers)
+sudo chown user:group /opt/hadoop_tmp/hdfs/namenode
+sudo chown user:group /opt/hadoop_tmp/hdfs/datanode
+
+8-	Edit the ([Installation_Path]/etc/hadoop/core-site.xml) configuration file , which you use to configure the (NameNode) URL 
+
+<configuration>
+    <property>
+        <name>fs.default.name</name>
+        <value>hdfs://raspbigdata01:9000/</value>
+    </property>
+    <property>
+        <name>fs.default.FS</name>
+        <value>hdfs://raspbigdata01:9000/</value>
+    </property>
+</configuration>
+
+9-	Edit the ([Installation_Path]/etc/hadoop/hdfs-site.xml) configuration file , which you use to configure the HDFS directories for the name nodes and the data nodes and the replication 
+
+<configuration>
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>/opt/hadoop_tmp/hdfs/datanode</value>
+        <final>true</final>
+    </property>
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>/opt/hadoop_tmp/hdfs/namenode</value>
+        <final>true</final>
+    </property>
+    <property>
+        <name>dfs.namenode.http-address</name>
+        <value>raspbigdata01:50070</value>
+    </property>
+    <property>
+        <name>dfs.replication</name>
+        <value>3</value> 
+    </property>
+</configuration>
+10-	Edit the ([Installation_Path]/etc/hadoop/yarn-site.xml) configuration file , which you use to configure the YARN (resources manager)
+
+<!-- Site specific YARN configuration properties -->
+    <property>
+        <name>yarn.resourcemanager.resource-tracker.address</name>
+        <value>raspbigdata01:8025</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.scheduler.address</name>
+        <value>raspbigdata01:8035</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.address</name>
+        <value>raspbigdata01:8050</value>
+    </property> 
+
+11-	Copy the Hadoop folder to other nodes 
+scp -r hadoop-3.1.2 raspbigdata02:/apache/hadoop/
+scp -r hadoop-3.1.2 raspbigdata03:/apache/hadoop/
+
+12-	Format the name node and start the service
+
+cd /apache/hadoop/hadoop-3.1.2/
+./bin/hdfs namenode –format
+source .bashrc
+cd sbin/
+./start-yarn.sh # run only ones (in name node or data nodes)
+./start-dfs.sh   # run only ones (in name node or data nodes)
+
+13-	 Verify the cluster
+
+./bin/hdfs dfsadmin –report
+Jps
+
+
+14-	Update .bashprofile and .bahrc
+export HADOOP_HOME=/apache/hadoop/hadoop-3.1.2
+export HADOOP_MAPRED_HOME=$HADOOP_HOME 
+export HADOOP_COMMON_HOME=$HADOOP_HOME 
+export HADOOP_HDFS_HOME=$HADOOP_HOME 
+export YARN_HOME=$HADOOP_HOME
+export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+
